@@ -142,10 +142,14 @@ object ChatRepository {
             forwarded = forwarded
         )
 
+        // Inbox preview must never be a raw media URL — photo messages store a
+        // Cloudinary URL as content, which would flood the conversation list.
+        val preview = if (type == "image") "📷 Picha" else text
+
         val summary = mutableMapOf<String, Any>(
             "id" to chatId,
             "users" to listOf(senderId, receiverId).sorted(),
-            "lastMessage" to text,
+            "lastMessage" to preview,
             "lastSenderId" to senderId,
             "lastTimestamp" to timestamp,
             "updatedAt" to FieldValue.serverTimestamp(),
@@ -159,7 +163,7 @@ object ChatRepository {
                 batch.set(
                     chatRef,
                     mapOf(
-                        "lastMessage" to text,
+                        "lastMessage" to preview,
                         "lastSenderId" to senderId,
                         "lastTimestamp" to timestamp,
                         "unreadCount.$receiverId" to FieldValue.increment(1)

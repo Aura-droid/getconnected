@@ -261,10 +261,17 @@ private fun InboxRow(
     onClick: () -> Unit
 ) {
     val sentByMe = chat.lastSenderId == currentUserId && currentUserId.isNotBlank()
+    // Photo messages used to store the raw Cloudinary URL as lastMessage (both
+    // old and new clients wrote it) — render a short label for those rows.
+    val lastMessage = if (chat.lastMessage.contains("res.cloudinary.com")) {
+        "📷 Picha"
+    } else {
+        chat.lastMessage
+    }
     val preview = when {
         chat.lastMessage.isBlank() -> "Anza mazungumzo"
-        chat.lastSenderId == currentUserId -> "Wewe: ${chat.lastMessage}"
-        else -> chat.lastMessage
+        chat.lastSenderId == currentUserId -> "Wewe: $lastMessage"
+        else -> lastMessage
     }
 
     Row(
