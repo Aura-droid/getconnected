@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Get Connected</string>
+    <string name="chat_send_failed">Imeshindikana kutuma: %1$s</string>
+    <string name="chat_delete_failed">Imeshindikana kufuta: %1$s</string>
+    <string name="chat_invalid_link">Kiungo si sahihi au hakipakuli.</string>
+    <string name="chat_reaction_failed">Imeshindikana kuweka hisia: %1$s</string>
+    <string name="chat_block_failed">Imeshindikana kuzuia mtumiaji: %1$s</string>
+    <string name="user_blocked">Mtumiaji amezuiwa.</string>
+    <string name="user_unblocked">Mtumiaji amefunguliwa.</string>
+    <string name="chat_load_older_failed">Imeshindikana kupakia ujumbe wa awali: %1$s</string>
+    <string name="chat_upload_failed">Imeshindikana kupakia picha: %1$s</string>
+</resources>
