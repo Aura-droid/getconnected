@@ -1647,23 +1647,9 @@ private fun timeLabel(timestamp: Long): String =
 /** Compresses an image before upload (free-tier friendly). */
 private suspend fun compressImage(uri: Uri, context: Context): Uri {
     return withContext(Dispatchers.IO) {
-        try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
-            val outputStream = file.outputStream()
-            
-            // TODO: Implement proper image compression here
-            // For now, just copy the file (to be implemented later)
-            inputStream?.use { input ->
-                outputStream.use { output ->
-                    input.copyTo(output)
-                }
-            }
-            Uri.fromFile(file)
-        } catch (e: Exception) {
-            Log.e("ChatScreen", "Error compressing image", e)
-            uri
-        }
+        // Real compression: downscale to 1280px / JPEG q80 with EXIF rotation
+        // baked in. Falls back to the original uri if anything fails.
+        ImageCompressor.compress(context, uri, maxDim = 1280, quality = 80)
     }
 }
 

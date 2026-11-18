@@ -89,6 +89,8 @@ dependencies {
     implementation(libs.jsoup)
 
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // EXIF orientation for ImageCompressor (re-encoded uploads must not be sideways).
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
     implementation("com.google.android.gms:play-services-auth:22.0.0")

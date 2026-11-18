@@ -28,10 +28,26 @@
 -keep class androidx.room.paging.**
 -dontwarn androidx.room.paging.**
 
+# WorkManager instantiates several of its parts reflectively from strings
+# persisted in its DB — InputMergers via Class.newInstance() (this broke
+# Cloudinary uploads: "Could not create Input Merger OverwritingInputMerger"
+# left the upload worker never executing, so no callback ever fired), and
+# workers/dependencies by class name. Keep the whole tree intact.
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.work.InputMerger { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
+
 # --- Cloudinary (ships no consumer rules) -------------------------------------
--keep class com.cloudinary.android.** { *; }
--keep interface com.cloudinary.android.callback.** { *; }
--dontwarn com.cloudinary.android.**
+# The SDK is split across modules: com.cloudinary.android.* (Android layer,
+# WorkManager workers, callbacks) AND the base com.cloudinary.* package
+# (cloudinary-core: Cloudinary, Uploader, Api, JSON plumbing). Uploads run in a
+# background worker and deliver results back by reflection/serialization, so
+# R8 renaming or stripping anything in either tree silently stalls the upload
+# with no callback reaching the app.
+-keep class com.cloudinary.** { *; }
+-keep interface com.cloudinary.** { *; }
+-keepclassmembers class com.cloudinary.** { *; }
+-dontwarn com.cloudinary.**
 
 # --- ShortcutBadger (resolves launcher classes by reflection) -----------------
 -keep class me.leolin.shortcutbadger.** { *; }

@@ -31,6 +31,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +60,9 @@ fun ProfileScreen() {
 
     // UI States
     var isUploading by remember { mutableStateOf(false) }
+    // -1 = compressing/indeterminate, 0..100 = upload progress.
+    var uploadPercent by remember { mutableStateOf(-1) }
+    val uploadScope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
     val regions = listOf("Dar es Salaam", "Mwanza", "Mbeya", "Arusha", "Kigoma", "Dodoma", "Tanga")
 
@@ -114,46 +120,58 @@ fun ProfileScreen() {
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
+        uri?.let { picked ->
             isUploading = true
-            MediaManager.get().upload(it)
-                .unsigned("getconnected") // Your Preset Name
-                .option("folder", "getconnected") // Your Folder Name
-                .callback(object : UploadCallback {
-                    override fun onStart(requestId: String?) {
-                        isUploading = true
-                    }
-                    override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
-                        val url = resultData?.get("secure_url") as? String
-                        if (url.isNullOrBlank()) {
-                            isUploading = false
-                            Toast.makeText(context, "Imefeli kupakia picha.", Toast.LENGTH_LONG).show()
-                            return
+            uploadPercent = -1
+            uploadScope.launch {
+                // Compress first (off the main thread): full-resolution photos
+                // crawl on slow connections and waste Cloudinary credits.
+                val compressed = withContext(Dispatchers.IO) {
+                    ImageCompressor.compress(context, picked, maxDim = 1024, quality = 82)
+                }
+                MediaManager.get().upload(compressed)
+                    .unsigned("getconnected") // Your Preset Name
+                    .option("folder", "getconnected") // Your Folder Name
+                    .callback(object : UploadCallback {
+                        override fun onStart(requestId: String?) {
+                            isUploading = true
                         }
-                        // 4. Save Cloudinary URL to Firestore
-                        user?.uid?.let { uid ->
-                            db.collection("users").document(uid).update("profileImage", url)
-                                .addOnSuccessListener {
-                                    isUploading = false
-                                    Toast.makeText(context, "Picha imehifadhiwa!", Toast.LENGTH_SHORT).show()
-                                }
-                                .addOnFailureListener {
-                                    isUploading = false
-                                    Toast.makeText(context, "Imeshindikana kuhifadhi picha.", Toast.LENGTH_LONG).show()
-                                }
-                        } ?: run {
-                            isUploading = false
+                        override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
+                            val url = resultData?.get("secure_url") as? String
+                            if (url.isNullOrBlank()) {
+                                isUploading = false
+                                Toast.makeText(context, "Imefeli kupakia picha.", Toast.LENGTH_LONG).show()
+                                return
+                            }
+                            // 4. Save Cloudinary URL to Firestore
+                            user?.uid?.let { uid ->
+                                db.collection("users").document(uid).update("profileImage", url)
+                                    .addOnSuccessListener {
+                                        isUploading = false
+                                        Toast.makeText(context, "Picha imehifadhiwa!", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .addOnFailureListener {
+                                        isUploading = false
+                                        Toast.makeText(context, "Imeshindikana kuhifadhi picha.", Toast.LENGTH_LONG).show()
+                                    }
+                            } ?: run {
+                                isUploading = false
+                            }
                         }
-                    }
 
-                    override fun onError(requestId: String?, error: ErrorInfo?) {
-                        isUploading = false
-                        Toast.makeText(context, "Imefeli kupakia: ${error?.description}", Toast.LENGTH_LONG).show()
-                    }
+                        override fun onError(requestId: String?, error: ErrorInfo?) {
+                            isUploading = false
+                            Toast.makeText(context, "Imefeli kupakia: ${error?.description}", Toast.LENGTH_LONG).show()
+                        }
 
-                    override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
-                    override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
-                }).dispatch()
+                        override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+                        override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {
+                            uploadPercent =
+                                if (totalBytes > 0) ((bytes * 100) / totalBytes).toInt().coerceIn(0, 100)
+                                else -1
+                        }
+                    }).dispatch()
+            }
         }
     }
 
@@ -189,7 +207,11 @@ fun ProfileScreen() {
         }
 
         Text(
-            text = "Gusa kubadilisha picha",
+            text = when {
+                !isUploading -> "Gusa kubadilisha picha"
+                uploadPercent >= 0 -> "Inapakia... $uploadPercent%"
+                else -> "Inapakia..."
+            },
             style = MaterialTheme.typography.labelSmall,
             color = Color.Gray,
             modifier = Modifier.padding(top = 8.dp)
