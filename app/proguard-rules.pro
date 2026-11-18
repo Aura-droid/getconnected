@@ -18,6 +18,16 @@
 -keep class com.example.getconnected.JobicyResponse { *; }
 -keep class com.example.getconnected.RemoteJob { *; }
 
+# --- Room / WorkManager --------------------------------------------------------
+# Room loads its generated `*_Impl` database classes ONLY by reflection
+# (Class.forName(name + "_Impl").getDeclaredConstructor().newInstance()).
+# The library's own rule keeps the class name but not its members, so R8 would
+# strip the no-arg constructor and androidx.startup crashes WorkManager at
+# app launch with "Failed to create an instance of androidx.work.impl.WorkDatabase".
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.room.paging.**
+-dontwarn androidx.room.paging.**
+
 # --- Cloudinary (ships no consumer rules) -------------------------------------
 -keep class com.cloudinary.android.** { *; }
 -keep interface com.cloudinary.android.callback.** { *; }

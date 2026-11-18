@@ -94,7 +94,11 @@ data class Chat(
 )
 
 data class ChatSummary(
-    @DocumentId val id: String = "",
+    // NOT @DocumentId: chat documents also carry a literal `id` field (written by
+    // sendMessage/createChat), and Firestore throws on deserialisation when both
+    // exist ("cannot apply @DocumentId on this property") — crashing the chat list.
+    // Callers normalise with .copy(id = doc.id) after toObject() instead.
+    val id: String = "",
     val users: List<String> = emptyList(),
     val lastMessage: String = "",
     val lastSenderId: String = "",
