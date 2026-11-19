@@ -186,8 +186,13 @@ object ChatRepository {
         onComplete: ((Exception?) -> Unit)? = null
     ) {
         val value: Any = if (emoji.isNullOrEmpty()) FieldValue.delete() else emoji
+        // update() interprets the dotted key as a FIELD PATH, so this lands as a
+        // nested reactions map { uid: emoji } — which is exactly what
+        // Message.reactions deserialises (set(merge) stored a flat literal
+        // "reactions.<uid>" key instead: rules denied retries AND the UI could
+        // never render it).
         chatRef(chatId).collection("messages").document(messageId)
-            .set(mapOf("reactions.$userId" to value), SetOptions.merge())
+            .update(mapOf("reactions.$userId" to value))
             .addOnSuccessListener { onComplete?.invoke(null) }
             .addOnFailureListener { onComplete?.invoke(it) }
     }
